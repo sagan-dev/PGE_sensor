@@ -690,6 +690,14 @@ class PgeScraper:
             own_id = normalize_number(account_id) if account_id is not None else self._default_account_id()
             if own_id is None:
                 raise PgeApiError("Invalid billing account id")
+            # Use the number exactly as PGE spells it today (e.g. with a new
+            # leading zero), while matching the stored id without zeros.
+            current = next(
+                (a.id for a in parse_billing_accounts({"billingAccounts": self.get_billing_accounts(use_cache=True)})
+                 if same_number(a.id, own_id)),
+                None,
+            )
+            own_id = current or own_id
             balance = self._call("GET", BALANCE_URL.format(account_id=own_id))
             documents = self.get_documents(own_id)
 

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [1.5.2-acp57] - 2026-11-10 (fork sagan-dev, niewydane)
+
+### Fixed
+- PL: Odpowiedzi WAF/bot defense PGE (strona CAPTCHA z HTTP 200, `{"supportID"}` z HTTP 403, reset połączenia) są rozpoznawane jako blokada, a nie „Login request failed” ani „błędne hasło”. Integracja nie próbuje obchodzić zabezpieczenia; po blokadzie odczekuje 1 h, 3 h, 6 h, 12 h.
+- PL: Token jest używany ponownie do wygaśnięcia, jedno logowanie na login dla wszystkich wpisów.
+- PL: Po nieudanym odświeżeniu sensory są `unavailable` zamiast trzymać stare kwoty; brakujące wartości to `None`, nigdy 0. Błąd pobrania dokumentów przerywa odświeżenie zamiast dawać puste dane.
+- PL: Energia z faktury bierze najnowszą fakturę rzeczywistą (nie prognozę); `state_class: total` z `last_reset` = początek okresu.
+- PL: Numery kont/PPE są tekstem; numery różniące się wiodącym zerem to różne umowy.
+- PL: Logi bez e-maili, numerów kont, PPE, kwot i tokenów.
+
+### Added
+- PL: Sensor `PGE Faktury` (liczba, ostatnia faktura, historia, widok łączny umów jednego licznika), sensor diagnostyczny `PGE Ostatnia synchronizacja`, atrybuty `contract_status` i `meter_owner`, `diagnostics.py` z redakcją.
+- PL: Zakończona umowa nie publikuje kWh (jedna seria na licznik).
+
 ## [1.5.1] - 2026-08-13
 
 ### Fixed

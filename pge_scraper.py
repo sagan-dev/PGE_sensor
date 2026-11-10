@@ -48,13 +48,11 @@ def main() -> int:
     except PgeScraperError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
-    if balance.due_date:
-        due_text = balance.due_date.strftime("%d.%m.%Y")
-        print(f"PGE Saldo: {balance.amount:.2f} PLN")
-        print(f"PGE Termin płatności: {due_text}")
-    else:
-        print(f"PGE Saldo: {balance.amount:.2f} PLN")
-        print(f"PGE Termin płatności: Brak danych")
+    amount = f"{balance.amount:.2f} PLN" if balance.amount is not None else "brak danych"
+    print(f"PGE Saldo: {amount}")
+    due_text = balance.due_date.strftime("%d.%m.%Y") if balance.due_date else "Brak danych"
+    print(f"PGE Termin płatności: {due_text}")
+    print(f"PGE Status umowy: {balance.contract_status}")
         
     print(f"PGE Kwota faktury: {balance.invoice_amount} PLN")
     print(f"PGE Energia pobrana: {balance.consumed_energy} kWh")

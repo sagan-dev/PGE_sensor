@@ -10,7 +10,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
-from .api import PgeScraper, PgeScraperError, describe_billing_account
+from .api import PgeAuthError, PgeScraper, PgeScraperError, describe_billing_account, number_key
 from .const import CONF_ACCOUNT_ID, DOMAIN
 
 ALL_POINTS_KEY = "__all__"
@@ -41,11 +41,11 @@ class PgeEbokConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             username = user_input[CONF_USERNAME]
             try:
                 accounts = await _async_fetch_accounts(self.hass, user_input)
-            except PgeScraperError as exc:
-                if "incorrect credentials" in str(exc):
-                    errors["base"] = "invalid_auth"
-                else:
-                    errors["base"] = "cannot_connect"
+            except PgeAuthError:
+                errors["base"] = "invalid_auth"
+            except PgeScraperError:
+                # Includes PgeBlockedError (PGE WAF/bot defense): not a password problem.
+                errors["base"] = "cannot_connect"
             except Exception:
                 errors["base"] = "unknown"
             else:
@@ -53,12 +53,14 @@ class PgeEbokConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._password = user_input[CONF_PASSWORD]
                 self._accounts = accounts
 
+                # Compare account numbers as strings without leading zeros:
+                # "01234567" and "001234567" are the same contract.
                 existing_ids = {
-                    entry.data.get(CONF_ACCOUNT_ID)
+                    number_key(entry.data.get(CONF_ACCOUNT_ID))
                     for entry in self._async_current_entries()
-                    if entry.data[CONF_USERNAME].lower() == username.lower()
+                    if entry.data[CONF_USERNAME].strip().lower() == username.strip().lower()
                 }
-                self._available = [acc for acc in accounts if acc.get("id") not in existing_ids]
+                self._available = [acc for acc in accounts if number_key(acc.get("id")) not in existing_ids]
 
                 if not accounts:
                     # No billing accounts reported at all; fall back to a single
@@ -119,6 +121,11 @@ class PgeEbokConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         await self.async_set_unique_id(f"{username.lower()}_{account_id}")
         self._abort_if_unique_id_configured()
+        for entry in self._async_current_entries():
+            if entry.data[CONF_USERNAME].strip().lower() == username.strip().lower() and number_key(
+                entry.data.get(CONF_ACCOUNT_ID)
+            ) == number_key(account_id):
+                return self.async_abort(reason="already_configured")
 
         return self.async_create_entry(
             title=import_data.get("label") or f"{username} ({account_id})",

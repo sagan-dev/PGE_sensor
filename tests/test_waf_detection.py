@@ -1,5 +1,5 @@
 """WAF / bot-defense answers must never look like data or like a wrong password."""
-from conftest import fixture_text, pge_api
+from helpers import fixture_text, pge_api
 
 
 def test_challenge_page_with_http_200_is_a_block():

@@ -7,7 +7,7 @@ import pytest
 
 pytest.importorskip("bs4")
 
-from conftest import ROOT, fixture_text  # noqa: E402
+from helpers import ROOT, fixture_text  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("pge_ebok_html", ROOT / "custom_components" / "pge_sensor" / "ebok_html.py")
 ebok = importlib.util.module_from_spec(_spec)

@@ -1,0 +1,20 @@
+{
+  "billingAccounts": [
+    {
+      "id": "01234567",
+      "accountNumber": "01234567",
+      "archived": true,
+      "defaultAccount": false,
+      "prosument": false,
+      "ppms": [{"number": "PL0000000000000000000001", "street": "Testowa", "buildingNumber": "1", "city": "Testowo"}]
+    },
+    {
+      "id": "001234567",
+      "accountNumber": "001234567",
+      "archived": false,
+      "defaultAccount": true,
+      "prosument": false,
+      "ppms": [{"number": "PL0000000000000000000001", "street": "Testowa", "buildingNumber": "1", "city": "Testowo"}]
+    }
+  ]
+}

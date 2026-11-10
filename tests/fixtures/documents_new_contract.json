@@ -1,0 +1,41 @@
+{
+  "documents": [
+    {
+      "documentId": 9002,
+      "documentNumber": "TEST/FV/0002",
+      "documentType": "PREPAYMENT_INVOICE",
+      "creationDate": "2026-10-01T00:00:00.000+0000",
+      "paymentDueDate": "2026-10-20T00:00:00.000+0000",
+      "paymentStatus": "UNPAID",
+      "totalAmount": 111.11,
+      "amountToPay": 111.11,
+      "prosument": false,
+      "ppmConsumptions": [
+        {"ppmNumber": "PL0000000000000000000001", "billingPeriodFrom": "2026-10-01T00:00:00", "billingPeriodTo": "2026-11-30T00:00:00", "consumptionValue": 999.0}
+      ]
+    },
+    {
+      "documentId": 9001,
+      "documentNumber": "TEST/FV/0001",
+      "documentType": "INVOICE",
+      "creationDate": "2026-09-05T00:00:00.000+0000",
+      "paymentDueDate": "2026-09-25T00:00:00.000+0000",
+      "paidDate": "2026-09-20T00:00:00.000+0000",
+      "paymentStatus": "PAID",
+      "totalAmount": 222.22,
+      "amountToPay": 0.0,
+      "prosument": true,
+      "ppmConsumptions": [
+        {
+          "ppmNumber": "PL0000000000000000000001",
+          "ppm": {"id": 555, "ppmNumber": "PL0000000000000000000001"},
+          "billingPeriodFrom": "2026-05-20T00:00:00",
+          "billingPeriodTo": "2026-08-31T00:00:00",
+          "consumptionValue": 321.0,
+          "feedInValue": 45.5,
+          "valueSettledEnergyConsumed": 12.3
+        }
+      ]
+    }
+  ]
+}

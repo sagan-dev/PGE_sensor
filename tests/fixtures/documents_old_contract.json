@@ -1,0 +1,18 @@
+{
+  "documents": [
+    {
+      "documentId": 8001,
+      "documentNumber": "TEST/FV/OLD1",
+      "documentType": "INVOICE",
+      "creationDate": "2026-05-25T00:00:00.000+0000",
+      "paymentDueDate": "2026-06-10T00:00:00.000+0000",
+      "paidDate": "2026-06-08T00:00:00.000+0000",
+      "paymentStatus": "PAID",
+      "totalAmount": 50.0,
+      "amountToPay": 0.0,
+      "ppmConsumptions": [
+        {"ppmNumber": "PL0000000000000000000001", "billingPeriodFrom": "2026-05-07T00:00:00", "billingPeriodTo": "2026-05-19T00:00:00", "consumptionValue": 40.0}
+      ]
+    }
+  ]
+}

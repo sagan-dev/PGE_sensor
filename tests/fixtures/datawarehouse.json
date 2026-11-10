@@ -1,0 +1,1 @@
+{"zones": {"Strefa 1": {"dataWarehouseSummary": {"leftEnergyAmountSum": 10.5, "factor": 0.8}, "dataWarehousePpm": [{"insertToGridDate": "2026-07-01", "leftEnergyAmount": 5.0}, {"insertToGridDate": "2026-08-01", "leftEnergyAmount": 5.5}]}}}

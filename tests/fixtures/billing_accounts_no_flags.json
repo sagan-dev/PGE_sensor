@@ -1,0 +1,6 @@
+{
+  "billingAccounts": [
+    {"id": 1234567, "accountNumber": "01234567"},
+    {"id": 1234568, "accountNumber": "001234568"}
+  ]
+}

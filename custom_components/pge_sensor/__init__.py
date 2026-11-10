@@ -72,7 +72,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data.get(CONF_PPE),
     )
 
-    await coordinator.async_config_entry_first_refresh()
+    # Not async_config_entry_first_refresh(): when PGE blocks us, HA would
+    # retry the setup every ~80 s forever, logging in each time - exactly the
+    # traffic that keeps a WAF block alive.  The entry loads with unavailable
+    # entities and the coordinator's own back-off applies.
+    await coordinator.async_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 

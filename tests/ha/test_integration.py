@@ -127,3 +127,15 @@ async def test_diagnostics_are_redacted(hass):
         assert forbidden not in dump
     assert diag["coordinator"]["last_successful_sync"]
     assert diag["account_id_has_leading_zero"] is True
+
+
+async def test_blocked_at_startup_loads_without_setup_retry_storm(hass):
+    FakeClient.queue = [PgeBlockedError(support_id="1")]
+    entry = await setup_entry(hass)
+    assert entry.state.value == "loaded"
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    assert coordinator.update_interval.total_seconds() == 3600
+    registry = er.async_get(hass)
+    balance = next(e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)
+                   if e.unique_id.endswith("_balance"))
+    assert hass.states.get(balance).state == STATE_UNAVAILABLE

@@ -22,7 +22,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from .api import BalanceInfo
+from .api import CONTRACT_ENDED, BalanceInfo
 from .const import CONF_ACCOUNT_ID, DOMAIN
 from .coordinator import PgeEbokCoordinator
 
@@ -70,6 +70,7 @@ class PgeBaseSensor(CoordinatorEntity[PgeEbokCoordinator], SensorEntity):
 
     _key: str = ""
     _meter_value = False  # kWh values: only the contract that owns the meter publishes them
+    _financial = False  # amounts/dates of an archived contract must not trigger alarms
 
     def __init__(
         self,
@@ -112,8 +113,18 @@ class PgeBaseSensor(CoordinatorEntity[PgeEbokCoordinator], SensorEntity):
         return None
 
     @property
+    def archived_suppressed(self) -> bool:
+        """Ended contract: amounts are shown only as an attribute, state is unknown.
+
+        After PGE's billing-system migration an archived account can still show
+        "Zadłużenie" (debt) that is a migration artefact; it must not fire
+        automations based on the numeric state.
+        """
+        return self._financial and self.data is not None and self.data.contract_status == CONTRACT_ENDED
+
+    @property
     def native_value(self) -> Any:
-        if self.data is None or self.meter_suppressed:
+        if self.data is None or self.meter_suppressed or self.archived_suppressed:
             return None
         return self._value()
 
@@ -125,6 +136,12 @@ class PgeBaseSensor(CoordinatorEntity[PgeEbokCoordinator], SensorEntity):
         if self.data is None:
             return None
         attrs: dict[str, Any] = {"contract_status": self.data.contract_status}
+        if self.data.contract_status_source:
+            attrs["contract_status_source"] = self.data.contract_status_source
+        if self.archived_suppressed:
+            value = self._value()
+            attrs["archived"] = True
+            attrs["archived_reported_value"] = value.isoformat() if isinstance(value, date) else value
         if self._meter_value:
             attrs["meter_owner"] = self.data.meter_owner
         if self.coordinator.last_successful_sync:
@@ -142,6 +159,7 @@ class PgeBalanceSensor(PgeBaseSensor):
     _attr_native_unit_of_measurement = MONETARY_UNIT
     _attr_name = "PGE Saldo"
     _key = "balance"
+    _financial = True
 
     def _value(self) -> float | None:
         return _round(self.data.amount)
@@ -161,6 +179,7 @@ class PgeDueDateSensor(PgeBaseSensor):
     _attr_device_class = SensorDeviceClass.DATE
     _attr_name = "PGE Termin płatności"
     _key = "due_date"
+    _financial = True
 
     def _value(self) -> date | None:
         return self.data.due_date
@@ -171,6 +190,7 @@ class PgeInvoiceAmountSensor(PgeBaseSensor):
     _attr_native_unit_of_measurement = MONETARY_UNIT
     _attr_name = "PGE Kwota faktury"
     _key = "invoice_amount"
+    _financial = True
 
     def _value(self) -> float | None:
         return _round(self.data.invoice_amount)
@@ -181,6 +201,7 @@ class PgeCurrentPaymentSensor(PgeBaseSensor):
     _attr_native_unit_of_measurement = MONETARY_UNIT
     _attr_name = "PGE Bieżąca płatność"
     _key = "current_payment"
+    _financial = True
 
     def _value(self) -> float | None:
         return _round(self.data.current_payment)

@@ -98,6 +98,12 @@ async def test_ended_contract_publishes_no_kwh(hass):
     assert state.state == STATE_UNKNOWN
     assert state.attributes["contract_status"] == "ended"
     assert state.attributes["meter_owner"] is False
+    balance = next(e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)
+                   if e.unique_id.endswith("_balance"))
+    state = hass.states.get(balance)
+    assert state.state == STATE_UNKNOWN  # archived debt must not trigger numeric alarms
+    assert state.attributes["archived"] is True
+    assert state.attributes["archived_reported_value"] == 12.34
 
 
 async def test_active_contract_kwh_has_last_reset(hass):

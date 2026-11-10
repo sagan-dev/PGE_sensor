@@ -9,7 +9,7 @@ def test_leading_zero_is_kept():
 
 
 def test_leading_zero_variants_are_different_contracts():
-    # Michał's case: successor contract = old number with an extra leading zero
+    # numbers differing only by a leading zero must never be merged
     assert not pge_api.same_number("01234567", "001234567")
     assert pge_api.same_number("01234567", " 01234567 ")
     assert pge_api.same_number(1234567, "1234567")

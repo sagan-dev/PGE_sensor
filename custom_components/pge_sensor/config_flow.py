@@ -53,8 +53,8 @@ class PgeEbokConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._password = user_input[CONF_PASSWORD]
                 self._accounts = accounts
 
-                # Compare account numbers as strings without leading zeros:
-                # "01234567" and "001234567" are the same contract.
+                # Compare account numbers as normalized strings, never via int():
+                # "01234567" and "001234567" can be two different contracts.
                 existing_ids = {
                     number_key(entry.data.get(CONF_ACCOUNT_ID))
                     for entry in self._async_current_entries()

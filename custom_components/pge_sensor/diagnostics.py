@@ -58,7 +58,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
     ]
     result: dict[str, Any] = {
         "entry": async_redact_data({"title": entry.title, "data": dict(entry.data), "version": entry.version}, TO_REDACT),
+        "account_id_type": type(entry.data.get(CONF_ACCOUNT_ID)).__name__,
         "account_id_has_leading_zero": str(entry.data.get(CONF_ACCOUNT_ID, "")).startswith("0"),
+        "account_id_length": len(str(entry.data.get(CONF_ACCOUNT_ID) or "")),
         "duplicate_of": duplicates,
         "other_entries_same_login": same_login,
     }

@@ -116,9 +116,10 @@ class PgeApiError(PgeScraperError):
 def normalize_number(value: Any) -> str | None:
     """Customer/account/PPE number as a string, keeping leading zeros.
 
-    PGE numbers must never go through ``int()``: the same customer may be
-    shown as ``01234567`` and ``001234567``.  Whitespace and common
-    separators are removed, everything else is kept verbatim.
+    PGE numbers must never go through ``int()``: a successor contract may
+    differ from the old one only by a leading zero (``01234567`` vs
+    ``001234567``).  Whitespace and common separators are removed,
+    everything else is kept verbatim.
     """
     if value is None or isinstance(value, bool):
         return None
@@ -127,22 +128,44 @@ def normalize_number(value: Any) -> str | None:
 
 
 def number_key(value: Any) -> str | None:
-    """Comparison key: normalized and without leading zeros.
+    """Exact comparison key: normalized string, case-insensitive.
 
-    ``number_key("01234567") == number_key("001234567") == number_key(1234567)``.
-    Only for comparisons, never for display or URLs.
+    Leading zeros are significant.  PGE can issue a new contract whose number
+    differs from the previous one only by a leading zero (8 vs 9 digits), so
+    ``"01234567"`` and ``"001234567"`` are two different contracts.
     """
+    text = normalize_number(value)
+    return text.upper() if text is not None else None
+
+
+def loose_number_key(value: Any) -> str | None:
+    """Zero-insensitive key, ONLY for matching a legacy id stored as ``int``."""
     text = normalize_number(value)
     if text is None:
         return None
-    if text.isdigit():
-        return text.lstrip("0") or "0"
-    return text.upper()
+    return (text.lstrip("0") or "0") if text.isdigit() else text.upper()
 
 
 def same_number(left: Any, right: Any) -> bool:
     lkey = number_key(left)
     return lkey is not None and lkey == number_key(right)
+
+
+def find_account_id(candidates: Iterable[Any], wanted: Any) -> str | None:
+    """Return the candidate id matching ``wanted`` as PGE spells it today.
+
+    Exact match first.  Only if there is none, a zero-insensitive match is
+    accepted, and only when it is unambiguous (an entry stored ``1234567``
+    as int while PGE now lists ``"01234567"``).  When both ``01234567`` and
+    ``001234567`` exist, a stored ``1234567`` matches neither.
+    """
+    ids = [normalize_number(c) for c in candidates]
+    ids = [i for i in ids if i]
+    exact = [i for i in ids if same_number(i, wanted)]
+    if exact:
+        return exact[0]
+    loose = [i for i in ids if loose_number_key(i) == loose_number_key(wanted)]
+    return loose[0] if len(loose) == 1 else None
 
 
 def numeric(value: Any) -> float | None:
@@ -517,7 +540,7 @@ def resolve_meter_owner(
     After a contract change one physical meter (PPE) is billed on several
     billing accounts.  Only one of them may feed kWh into HA, otherwise the
     Energy dashboard gets duplicated series.  Order of preference: not ended,
-    newest settled period, highest account number.
+    newest settled period, longer/higher account number.
 
     Returns ``(is_owner, contract_status, source)``.
     """
@@ -536,11 +559,14 @@ def resolve_meter_owner(
     if not siblings:
         return True, status, source
 
-    def rank(acc: AccountInfo) -> tuple[int, date, str]:
+    def rank(acc: AccountInfo) -> tuple[int, date, int, str]:
+        # Tie-break: longer number, then higher number. TODO(ACP-57): confirm
+        # that a successor contract gets the longer/higher number.
         return (
             0 if acc.contract_status == CONTRACT_ENDED else 1,
             latest_period_end.get(acc.id) or date.min,
-            (number_key(acc.id) or "").zfill(32),
+            len(acc.id),
+            acc.id,
         )
 
     owner = max([own, *siblings], key=rank)
@@ -692,12 +718,8 @@ class PgeScraper:
                 raise PgeApiError("Invalid billing account id")
             # Use the number exactly as PGE spells it today (e.g. with a new
             # leading zero), while matching the stored id without zeros.
-            current = next(
-                (a.id for a in parse_billing_accounts({"billingAccounts": self.get_billing_accounts(use_cache=True)})
-                 if same_number(a.id, own_id)),
-                None,
-            )
-            own_id = current or own_id
+            listed = parse_billing_accounts({"billingAccounts": self.get_billing_accounts(use_cache=True)})
+            own_id = find_account_id((a.id for a in listed), own_id) or own_id
             balance = self._call("GET", BALANCE_URL.format(account_id=own_id))
             documents = self.get_documents(own_id)
 

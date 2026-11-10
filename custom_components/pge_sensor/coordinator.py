@@ -1,57 +1,106 @@
 """DataUpdateCoordinator for the PGE Sensor integration."""
 from __future__ import annotations
 
+import hashlib
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
-from .api import BalanceInfo, PgeScraper, PgeScraperError
-from .const import DEFAULT_TIMEOUT
+from .api import (
+    BalanceInfo,
+    PgeAuthError,
+    PgeBlockedError,
+    PgeScraper,
+    PgeScraperError,
+    normalize_number,
+)
 
 SCAN_INTERVAL = timedelta(hours=8)
-RETRY_INTERVAL = timedelta(minutes=30)
+# Back-off after failures. A blocked client must not hammer PGE: every retry
+# from a flagged address only prolongs the block.
+RETRY_INTERVALS = (timedelta(minutes=30), timedelta(hours=1), timedelta(hours=2), timedelta(hours=4))
+BLOCKED_INTERVALS = (timedelta(hours=1), timedelta(hours=3), timedelta(hours=6), timedelta(hours=12))
+AUTH_INTERVAL = timedelta(hours=12)
 _LOGGER = logging.getLogger(__name__)
 
 
+def anonymous_label(username: str, account_id: object | None) -> str:
+    """Stable, non-reversible label for logs (no e-mail, no account number)."""
+    digest = hashlib.sha256(f"{username.lower()}|{normalize_number(account_id)}".encode()).hexdigest()
+    return digest[:8]
+
+
 class PgeEbokCoordinator(DataUpdateCoordinator[BalanceInfo]):
-    """Coordinator responsible for fetching balance information."""
+    """Fetches data of one billing account (contract)."""
 
     def __init__(
         self,
         hass: HomeAssistant,
+        api: PgeScraper,
         username: str,
-        password: str,
-        account_id: int | None = None,
+        account_id: object | None = None,
+        ppe: str | None = None,
     ) -> None:
-        self._api = PgeScraper(username, password, timeout=DEFAULT_TIMEOUT)
+        self._api = api
         self._username = username
-        self._account_id = account_id
-        name = f"PGE Sensor ({username})" if account_id is None else f"PGE Sensor ({username} / {account_id})"
+        self._account_id = normalize_number(account_id) if account_id is not None else None
+        self._ppe = ppe
+        self.last_successful_sync: datetime | None = None
+        self.last_error: str | None = None
+        self.last_support_id: str | None = None
+        self.consecutive_failures = 0
         super().__init__(
             hass,
             _LOGGER,
-            name=name,
+            # The coordinator name is printed by HA in every error line.
+            name=f"PGE Sensor [{anonymous_label(username, account_id)}]",
             update_interval=SCAN_INTERVAL,
         )
 
     async def _async_update_data(self) -> BalanceInfo:
         try:
-            data = await self.hass.async_add_executor_job(self._api.get_balance_details, self._account_id)
-            self._ensure_interval(SCAN_INTERVAL)
-            return data
+            data = await self.hass.async_add_executor_job(
+                self._api.get_balance_details, self._account_id, self._ppe
+            )
+        except PgeBlockedError as err:
+            self._failed(err, BLOCKED_INTERVALS)
+            self.last_support_id = err.support_id
+            raise UpdateFailed(
+                "PGE WAF/bot defense blocked the request; backing off "
+                f"{self.update_interval}. Check https://ebok.gkpge.pl in a browser from the same network"
+            ) from err
+        except PgeAuthError as err:
+            self._failed(err, (AUTH_INTERVAL,))
+            raise UpdateFailed("PGE rejected the credentials (check password in eBOK)") from err
         except PgeScraperError as err:
-            self._ensure_interval(RETRY_INTERVAL)
-            raise UpdateFailed(str(err)) from err
+            self._failed(err, RETRY_INTERVALS)
+            raise UpdateFailed(f"{err} (retry in {self.update_interval})") from err
         except Exception as err:  # pragma: no cover - defensive guard
-            self._ensure_interval(RETRY_INTERVAL)
-            raise UpdateFailed(f"Unexpected coordinator error: {err}") from err
+            self._failed(err, RETRY_INTERVALS)
+            raise UpdateFailed(f"Unexpected coordinator error: {type(err).__name__}") from err
+
+        self.consecutive_failures = 0
+        self.last_error = None
+        self.last_successful_sync = dt_util.utcnow()
+        self._set_interval(SCAN_INTERVAL)
+        return data
+
+    def _failed(self, err: Exception, schedule: tuple[timedelta, ...]) -> None:
+        self.consecutive_failures += 1
+        self.last_error = type(err).__name__
+        self._set_interval(schedule[min(self.consecutive_failures - 1, len(schedule) - 1)])
 
     @property
     def username(self) -> str:
         return self._username
 
-    def _ensure_interval(self, interval: timedelta) -> None:
+    @property
+    def account_id(self) -> str | None:
+        return self._account_id
+
+    def _set_interval(self, interval: timedelta) -> None:
         if self.update_interval != interval:
             self.update_interval = interval

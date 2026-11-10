@@ -17,6 +17,11 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 - PL: Sensor `PGE Faktury` (liczba, ostatnia faktura, historia, widok łączny umów jednego licznika), sensor diagnostyczny `PGE Ostatnia synchronizacja`, atrybuty `contract_status` i `meter_owner`, `diagnostics.py` z redakcją.
 - PL: Zakończona umowa nie publikuje kWh (jedna seria na licznik).
+- PL: Opcja wpisu „Umowa zakończona (archiwalna)” do ręcznego oznaczenia umowy; kwoty umowy archiwalnej tylko w atrybutach (`archived_reported_value`), stan `unknown`, żeby nie wyzwalać automatyzacji.
+- PL: `ebok_html.py`: parsery tabeli faktur portalu eBOK (PrimeFaces), na razie niepodłączone.
+
+### Changed
+- PL: Gdy PGE blokuje pierwsze odświeżenie, wpis ładuje się z niedostępnymi encjami zamiast ponawiać konfigurację co ~80 s.
 
 ## [1.5.1] - 2026-08-13
 

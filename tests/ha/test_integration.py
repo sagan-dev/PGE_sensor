@@ -139,3 +139,23 @@ async def test_blocked_at_startup_loads_without_setup_retry_storm(hass):
     balance = next(e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)
                    if e.unique_id.endswith("_balance"))
     assert hass.states.get(balance).state == STATE_UNAVAILABLE
+
+
+async def test_user_option_marks_contract_ended(hass):
+    FakeClient.queue = [sample()]
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Synthetic", unique_id=f"{USER}_01234567",
+        data={"username": USER, "password": "not-a-real-password", "account_id": "01234567"},
+        options={"contract_ended": True},
+    )
+    entry.add_to_hass(hass)
+    with patch("custom_components.pge_sensor.PgeScraper", FakeClient):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    registry = er.async_get(hass)
+    consumed = next(e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)
+                    if e.unique_id.endswith("_consumed_energy"))
+    state = hass.states.get(consumed)
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes["contract_status"] == "ended"
+    assert state.attributes["contract_status_source"] == "user_option"

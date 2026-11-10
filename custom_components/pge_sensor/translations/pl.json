@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {"data": {"username": "Login (e-mail)", "password": "Hasło"}},
+      "select_point": {"data": {"point": "Konto rozliczeniowe"}}
+    },
+    "error": {
+      "invalid_auth": "PGE odrzuciło login lub hasło.",
+      "cannot_connect": "Brak połączenia z PGE albo PGE zablokowało żądanie (WAF/ochrona antybotowa). Spróbuj później.",
+      "unknown": "Nieoczekiwany błąd."
+    },
+    "abort": {"already_configured": "To konto rozliczeniowe jest już skonfigurowane."}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Umowa",
+        "data": {"contract_ended": "Umowa zakończona (archiwalna): nie publikuj kWh, kwoty tylko w atrybutach"}
+      }
+    }
+  }
+}

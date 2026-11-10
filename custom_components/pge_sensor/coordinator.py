@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import (
+    CONTRACT_ENDED,
     BalanceInfo,
     PgeAuthError,
     PgeBlockedError,
@@ -43,11 +44,13 @@ class PgeEbokCoordinator(DataUpdateCoordinator[BalanceInfo]):
         username: str,
         account_id: object | None = None,
         ppe: str | None = None,
+        contract_ended: bool = False,
     ) -> None:
         self._api = api
         self._username = username
         self._account_id = normalize_number(account_id) if account_id is not None else None
         self._ppe = ppe
+        self._contract_ended = contract_ended
         self.last_successful_sync: datetime | None = None
         self.last_error: str | None = None
         self.last_support_id: str | None = None
@@ -82,6 +85,10 @@ class PgeEbokCoordinator(DataUpdateCoordinator[BalanceInfo]):
             self._failed(err, RETRY_INTERVALS)
             raise UpdateFailed(f"Unexpected coordinator error: {type(err).__name__}") from err
 
+        if self._contract_ended:
+            data.contract_status = CONTRACT_ENDED
+            data.contract_status_source = "user_option"
+            data.meter_owner = False
         self.consecutive_failures = 0
         self.last_error = None
         self.last_successful_sync = dt_util.utcnow()

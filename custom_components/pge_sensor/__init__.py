@@ -9,7 +9,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .api import PgeScraper, number_key
-from .const import CONF_ACCOUNT_ID, CONF_PASSWORD, CONF_PPE, CONF_USERNAME, DEFAULT_TIMEOUT, DOMAIN
+from .const import (
+    CONF_ACCOUNT_ID,
+    CONF_CONTRACT_ENDED,
+    CONF_PASSWORD,
+    CONF_PPE,
+    CONF_USERNAME,
+    DEFAULT_TIMEOUT,
+    DOMAIN,
+)
 from .coordinator import PgeEbokCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
@@ -70,7 +78,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_USERNAME],
         entry.data.get(CONF_ACCOUNT_ID),
         entry.data.get(CONF_PPE),
+        bool(entry.options.get(CONF_CONTRACT_ENDED, False)),
     )
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # Not async_config_entry_first_refresh(): when PGE blocks us, HA would
     # retry the setup every ~80 s forever, logging in each time - exactly the
@@ -91,3 +101,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id, None)
         _release_client(hass, entry)
     return unload_ok
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)

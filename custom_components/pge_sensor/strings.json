@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {"data": {"username": "Login (e-mail)", "password": "Password"}},
+      "select_point": {"data": {"point": "Billing account"}}
+    },
+    "error": {
+      "invalid_auth": "PGE rejected the login or password.",
+      "cannot_connect": "Cannot reach PGE or PGE blocked the request (WAF/bot protection). Try again later.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {"already_configured": "This billing account is already configured."}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Contract",
+        "data": {"contract_ended": "Contract ended (archived): do not publish kWh, show amounts only as attributes"}
+      }
+    }
+  }
+}

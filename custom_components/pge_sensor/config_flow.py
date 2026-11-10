@@ -7,11 +7,11 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .api import PgeAuthError, PgeScraper, PgeScraperError, describe_billing_account, number_key
-from .const import CONF_ACCOUNT_ID, DOMAIN
+from .const import CONF_ACCOUNT_ID, CONF_CONTRACT_ENDED, DOMAIN
 
 ALL_POINTS_KEY = "__all__"
 
@@ -28,6 +28,11 @@ class PgeEbokConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for PGE Sensor."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+        return PgeOptionsFlow()
 
     def __init__(self) -> None:
         self._username: str | None = None
@@ -148,3 +153,14 @@ class PgeEbokConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         title = describe_billing_account(account) if len(self._accounts) > 1 else self._username
         return self.async_create_entry(title=title, data=data)
+
+
+class PgeOptionsFlow(config_entries.OptionsFlow):
+    """Let the user mark a contract as ended when PGE does not say so."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        current = self.config_entry.options.get(CONF_CONTRACT_ENDED, False)
+        schema = vol.Schema({vol.Required(CONF_CONTRACT_ENDED, default=current): bool})
+        return self.async_show_form(step_id="init", data_schema=schema)

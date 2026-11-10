@@ -42,3 +42,14 @@ async def test_same_contract_is_already_configured(hass):
                     data={**USER, "account_id": "01234567"}).add_to_hass(hass)
     result = await _submit(hass, return_value=[{"id": "01234567"}])
     assert result["type"] == FlowResultType.ABORT
+
+
+async def test_options_mark_contract_ended(hass):
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="user@example.invalid_01234567",
+                            data={**USER, "account_id": "01234567"})
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == FlowResultType.FORM
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"contract_ended": True})
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert entry.options == {"contract_ended": True}
